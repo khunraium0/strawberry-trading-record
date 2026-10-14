@@ -12,13 +12,13 @@ const STORAGE_KEYS = {
   SALES: 'strawberry_demo_sales',
 };
 
-// Seed initial data if first time
+// Initialize clean storage without fake customers or fake transactions
 function initSeedData() {
   const defaultUser = {
     id: 'demo-user-uuid-1234',
     email: 'farmer@strawberrytrade.com',
     user_metadata: {
-      business_name: 'Maymyo Strawberry Orchard & Trading',
+      business_name: 'Strawberry Trading Record',
     },
   };
 
@@ -26,193 +26,56 @@ function initSeedData() {
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(defaultUser));
   }
 
+  // Purge any legacy demo data from previous builds if found
+  const DEMO_IDS = ['cust-sup-001', 'cust-sup-002', 'cust-buy-001', 'cust-buy-002', 'pur-001', 'pur-002', 'pur-003', 'sal-001', 'sal-002', 'sal-003'];
+  const legacyCleanKey = 'strawberry_cleaned_demo_v3';
+  if (!localStorage.getItem(legacyCleanKey)) {
+    const custs = JSON.parse(localStorage.getItem(STORAGE_KEYS.CUSTOMERS) || '[]');
+    const filteredCusts = custs.filter((c) => !DEMO_IDS.includes(c.id));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(filteredCusts));
+
+    const purs = JSON.parse(localStorage.getItem(STORAGE_KEYS.PURCHASES) || '[]');
+    const filteredPurs = purs.filter((p) => !DEMO_IDS.includes(p.id) && !DEMO_IDS.includes(p.supplier_id));
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(filteredPurs));
+
+    const sales = JSON.parse(localStorage.getItem(STORAGE_KEYS.SALES) || '[]');
+    const filteredSales = sales.filter((s) => !DEMO_IDS.includes(s.id) && !DEMO_IDS.includes(s.buyer_id));
+    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(filteredSales));
+
+    localStorage.setItem(legacyCleanKey, 'true');
+  }
+
+  // Initial product option: Strawberry (users can add more products anytime)
   if (!localStorage.getItem(STORAGE_KEYS.PRODUCTS)) {
     const defaultProducts = [
       {
-        id: 'prod-001',
+        id: 'prod-strawberry',
         user_id: defaultUser.id,
-        name: 'Fresh Strawberry (Grade A / Export)',
+        name: 'Strawberry',
         category: 'Fresh Fruit',
-        unit: 'Kg',
-        description: 'Large, bright red, sweet strawberries picked daily',
-        is_active: true,
-        created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: 'prod-002',
-        user_id: defaultUser.id,
-        name: 'Strawberry (Grade B / Processing)',
-        category: 'Fresh Fruit',
-        unit: 'Kg',
-        description: 'Medium size, high sweetness, great for jam and syrup',
-        is_active: true,
-        created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: 'prod-003',
-        user_id: defaultUser.id,
-        name: 'Strawberry Gift Box (500g)',
-        category: 'Packaged',
         unit: 'Box',
-        description: 'Premium gift packaging with cushioned trays',
+        description: 'Fresh Strawberries',
         is_active: true,
-        created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
     ];
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(defaultProducts));
   }
 
+  // Empty initial customers
   if (!localStorage.getItem(STORAGE_KEYS.CUSTOMERS)) {
-    const defaultCustomers = [
-      {
-        id: 'cust-sup-001',
-        user_id: defaultUser.id,
-        name: 'U Thein Aung (Pyin Oo Lwin Farm)',
-        phone: '09-450012345',
-        address: 'Ward 5, Pyin Oo Lwin, Mandalay Region',
-        category: 'supplier',
-        notes: 'Reliable supplier, morning delivery at 7 AM',
-        created_at: new Date(Date.now() - 25 * 86400000).toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: 'cust-sup-002',
-        user_id: defaultUser.id,
-        name: 'Daw Khin Than (Highland Strawberry Garden)',
-        phone: '09-798112233',
-        address: 'Anisakan, Pyin Oo Lwin',
-        category: 'supplier',
-        notes: 'Specializes in Japanese Sweet Charlie variety',
-        created_at: new Date(Date.now() - 20 * 86400000).toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: 'cust-buy-001',
-        user_id: defaultUser.id,
-        name: 'Shwe Bagan Bakery & Cafe',
-        phone: '09-975443322',
-        address: '78th Street, Mandalay',
-        category: 'buyer',
-        notes: 'Orders Grade A weekly on Mondays and Thursdays',
-        created_at: new Date(Date.now() - 15 * 86400000).toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        id: 'cust-buy-002',
-        user_id: defaultUser.id,
-        name: 'Yangon Fresh Market (City Mart Vendor)',
-        phone: '09-250889900',
-        address: 'Thiri Mingalar Market, Yangon',
-        category: 'buyer',
-        notes: 'Bulk purchaser for retail distribution',
-        created_at: new Date(Date.now() - 12 * 86400000).toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    ];
-    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(defaultCustomers));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify([]));
   }
 
+  // Empty initial purchases
   if (!localStorage.getItem(STORAGE_KEYS.PURCHASES)) {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
-    const fiveDaysAgo = new Date(now.getTime() - 5 * 86400000).toISOString().split('T')[0];
-
-    const defaultPurchases = [
-      {
-        id: 'pur-001',
-        user_id: defaultUser.id,
-        supplier_id: 'cust-sup-001',
-        product_id: 'prod-001',
-        transaction_date: todayStr,
-        quantity: 120,
-        unit: 'Kg',
-        price_per_unit: 14000,
-        total_amount: 1680000,
-        notes: 'Fresh morning harvest, Grade A batch',
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: 'pur-002',
-        user_id: defaultUser.id,
-        supplier_id: 'cust-sup-002',
-        product_id: 'prod-002',
-        transaction_date: yesterday,
-        quantity: 80,
-        unit: 'Kg',
-        price_per_unit: 9500,
-        total_amount: 760000,
-        notes: 'Batch for jam manufacturing',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-      },
-      {
-        id: 'pur-003',
-        user_id: defaultUser.id,
-        supplier_id: 'cust-sup-001',
-        product_id: 'prod-001',
-        transaction_date: fiveDaysAgo,
-        quantity: 150,
-        unit: 'Kg',
-        price_per_unit: 13500,
-        total_amount: 2025000,
-        notes: 'Peak quality strawberry harvest',
-        created_at: new Date(Date.now() - 5 * 86400000).toISOString(),
-      },
-    ];
-    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(defaultPurchases));
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify([]));
   }
 
+  // Empty initial sales
   if (!localStorage.getItem(STORAGE_KEYS.SALES)) {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const yesterday = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
-    const fourDaysAgo = new Date(now.getTime() - 4 * 86400000).toISOString().split('T')[0];
-
-    const defaultSales = [
-      {
-        id: 'sal-001',
-        user_id: defaultUser.id,
-        buyer_id: 'cust-buy-001',
-        product_id: 'prod-001',
-        transaction_date: todayStr,
-        quantity: 40,
-        unit: 'Kg',
-        unit_price: 18500,
-        total_amount: 740000,
-        notes: 'Delivered to cafe kitchen by 10 AM',
-        created_at: new Date().toISOString(),
-      },
-      {
-        id: 'sal-002',
-        user_id: defaultUser.id,
-        buyer_id: 'cust-buy-002',
-        product_id: 'prod-001',
-        transaction_date: yesterday,
-        quantity: 70,
-        unit: 'Kg',
-        unit_price: 18000,
-        total_amount: 1260000,
-        notes: 'Highway express bus cargo dispatch to Yangon',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-      },
-      {
-        id: 'sal-003',
-        user_id: defaultUser.id,
-        buyer_id: 'cust-buy-001',
-        product_id: 'prod-003',
-        transaction_date: fourDaysAgo,
-        quantity: 25,
-        unit: 'Box',
-        unit_price: 12000,
-        total_amount: 300000,
-        notes: 'Gift boxes for weekend festival promotion',
-        created_at: new Date(Date.now() - 4 * 86400000).toISOString(),
-      },
-    ];
-    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(defaultSales));
+    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify([]));
   }
 }
 

@@ -261,4 +261,155 @@ describe('CRUD Services (Persistent Offline & Fallback Layer)', () => {
     expect(history.purchases.length).toBe(1);
     expect(history.purchases[0].id).toBe(purchase.id);
   });
+
+  it('executes complete Customer Workflow (A through O)', async () => {
+    // A. Open application with no demo data
+    const initialCusts = await customerService.getCustomers(testUserId);
+    expect(initialCusts).toEqual([]);
+
+    // B. Add a Supplier
+    const supplier = await customerService.saveCustomer(
+      {
+        name: 'Pyin Oo Lwin Organic Farm',
+        phone: '09-45001122',
+        address: 'Pyin Oo Lwin',
+        category: 'supplier',
+        notes: 'Delivers daily morning harvest',
+      },
+      testUserId
+    );
+    expect(supplier.id).toBeDefined();
+    expect(supplier.name).toBe('Pyin Oo Lwin Organic Farm');
+    expect(supplier.category).toBe('supplier');
+
+    // C. Open that Supplier's detail page (verify initial history is empty)
+    let supplierDetails = await customerService.getCustomerWithHistory(supplier.id, testUserId);
+    expect(supplierDetails.customer.name).toBe('Pyin Oo Lwin Organic Farm');
+    expect(supplierDetails.purchases).toHaveLength(0);
+
+    // D & E. Click New Record -> Add Strawberry purchase of 20 boxes at 15,000 Ks per box
+    const qty = 20;
+    const pricePerBox = 15000;
+    // F. Confirm that total is 300,000 Ks
+    const totalAmount = calculateTotalAmount(qty, pricePerBox);
+    expect(totalAmount).toBe(300000);
+    expect(formatMMK(totalAmount)).toBe('300,000 Ks');
+
+    // G. Save the record
+    const record1 = await purchaseService.savePurchase(
+      {
+        supplier_id: supplier.id,
+        product_name: 'Strawberry',
+        transaction_date: '2026-10-14',
+        quantity: qty,
+        unit: 'Box',
+        price_per_unit: pricePerBox,
+        total_amount: totalAmount,
+        notes: 'Morning delivery',
+      },
+      testUserId
+    );
+    expect(record1.id).toBeDefined();
+
+    // H. Confirm that the record appears under the correct Supplier
+    supplierDetails = await customerService.getCustomerWithHistory(supplier.id, testUserId);
+    expect(supplierDetails.purchases).toHaveLength(1);
+    expect(supplierDetails.purchases[0].id).toBe(record1.id);
+    expect(supplierDetails.purchases[0].quantity).toBe(20);
+    expect(supplierDetails.purchases[0].total_amount).toBe(300000);
+
+    // I. Refresh simulation (read directly from store) and confirm record remains
+    const refreshedPurchases = localStore.getPurchases(testUserId);
+    expect(refreshedPurchases.some((p) => p.id === record1.id)).toBe(true);
+
+    // J. Edit the quantity (e.g. 25 boxes) and confirm total updates correctly (25 * 15,000 = 375,000 Ks)
+    const updatedQty = 25;
+    const updatedTotal = calculateTotalAmount(updatedQty, pricePerBox);
+    expect(updatedTotal).toBe(375000);
+
+    const editedRecord = await purchaseService.savePurchase(
+      {
+        id: record1.id,
+        supplier_id: supplier.id,
+        product_name: 'Strawberry',
+        transaction_date: '2026-10-14',
+        quantity: updatedQty,
+        unit: 'Box',
+        price_per_unit: pricePerBox,
+        total_amount: updatedTotal,
+        notes: 'Morning delivery (updated count)',
+      },
+      testUserId
+    );
+    expect(editedRecord.quantity).toBe(25);
+    expect(editedRecord.total_amount).toBe(375000);
+
+    // Verify it updated the existing record rather than creating a duplicate
+    supplierDetails = await customerService.getCustomerWithHistory(supplier.id, testUserId);
+    expect(supplierDetails.purchases).toHaveLength(1);
+    expect(supplierDetails.purchases[0].quantity).toBe(25);
+
+    // K. Add a Buyer
+    const buyer = await customerService.saveCustomer(
+      {
+        name: 'Mandalay Bakery & Cafe',
+        phone: '09-79001122',
+        address: '78th St, Mandalay',
+        category: 'buyer',
+        notes: 'Weekly fresh fruit delivery',
+      },
+      testUserId
+    );
+    expect(buyer.id).toBeDefined();
+    expect(buyer.category).toBe('buyer');
+
+    // L. Open the Buyer and add a Strawberry sales record: 10 boxes @ 20,000 Ks = 200,000 Ks
+    const buyerSale = await salesService.saveSales(
+      {
+        buyer_id: buyer.id,
+        product_name: 'Strawberry',
+        transaction_date: '2026-10-14',
+        quantity: 10,
+        unit: 'Box',
+        unit_price: 20000,
+        notes: 'Delivered to pastry chef',
+      },
+      testUserId
+    );
+    expect(buyerSale.total_amount).toBe(200000);
+
+    // M. Confirm Buyer records remain separate from Supplier records
+    const buyerDetails = await customerService.getCustomerWithHistory(buyer.id, testUserId);
+    expect(buyerDetails.sales).toHaveLength(1);
+    expect(buyerDetails.purchases).toHaveLength(0);
+    expect(buyerDetails.sales[0].id).toBe(buyerSale.id);
+
+    supplierDetails = await customerService.getCustomerWithHistory(supplier.id, testUserId);
+    expect(supplierDetails.purchases).toHaveLength(1);
+    expect(supplierDetails.sales).toHaveLength(0);
+
+    // O. Confirm that adding a new record does NOT overwrite older records
+    const record2 = await purchaseService.savePurchase(
+      {
+        supplier_id: supplier.id,
+        product_name: 'Strawberry',
+        transaction_date: '2026-10-15',
+        quantity: 15,
+        unit: 'Box',
+        price_per_unit: 14000,
+        notes: 'Second harvest batch',
+      },
+      testUserId
+    );
+    supplierDetails = await customerService.getCustomerWithHistory(supplier.id, testUserId);
+    expect(supplierDetails.purchases).toHaveLength(2);
+    expect(supplierDetails.purchases.some((p) => p.id === record1.id)).toBe(true);
+    expect(supplierDetails.purchases.some((p) => p.id === record2.id)).toBe(true);
+
+    // N. Test deletion with confirmation (removes record2)
+    await purchaseService.deletePurchase(record2.id, testUserId);
+    supplierDetails = await customerService.getCustomerWithHistory(supplier.id, testUserId);
+    expect(supplierDetails.purchases).toHaveLength(1);
+    expect(supplierDetails.purchases[0].id).toBe(record1.id);
+  });
 });

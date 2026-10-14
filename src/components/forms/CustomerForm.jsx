@@ -56,16 +56,15 @@ export function CustomerForm({ initialData = null, onSubmit, onCancel, defaultCa
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Category selector */}
+      {/* Customer Type selector */}
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-          Customer Role / Category *
+          Customer Type *
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {[
-            { id: 'supplier', label: 'Supplier', desc: 'Sells to us' },
-            { id: 'buyer', label: 'Buyer', desc: 'Buys from us' },
-            { id: 'both', label: 'Both', desc: 'Supplier & Buyer' },
+            { id: 'supplier', label: 'Supplier', desc: 'From whom we purchase products' },
+            { id: 'buyer', label: 'Buyer', desc: 'To whom we sell products' },
           ].map((cat) => (
             <button
               key={cat.id}
@@ -177,7 +176,7 @@ export function CustomerForm({ initialData = null, onSubmit, onCancel, defaultCa
           className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm shadow-rose-200 disabled:opacity-60"
         >
           {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {initialData?.id ? 'Update Customer' : 'Save Customer'}
+          {initialData?.id ? 'Save Customer' : 'Add Customer'}
         </button>
       </div>
     </form>
